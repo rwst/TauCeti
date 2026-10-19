@@ -20,10 +20,11 @@ divisor of `A`.
 For an integer matrix `A` whose rows are linearly independent over `ℚ`, the quantity
 `√det (A * Aᵀ) / minorGcd A` is the right-hand side of the Bombieri–Vaaler form of Siegel's lemma
 for the integral kernel `{x : ι → ℤ | A *ᵥ x = 0}`. This file proves the arithmetic facts about it
-that do not involve the kernel: the rank hypothesis is the nonvanishing of the Gram determinant,
-the Gram determinant is then positive, `minorGcd A ≥ 1`, `minorGcd A ^ 2` divides the Gram
-determinant, and the quotient is unchanged under `A ↦ U * A` for `U ∈ GL_m(ℤ)`. The classical
-Siegel bound in the entries of `A` is not invariant under this substitution.
+that do not involve the kernel: `minorGcd A ≥ 1`, `minorGcd A ^ 2` divides the Gram determinant,
+and the quotient is unchanged under `A ↦ U * A` for `U ∈ GL_m(ℤ)`. The classical Siegel bound in
+the entries of `A` is not invariant under this substitution. The facts about the Gram determinant
+alone, including that the rank hypothesis is its nonvanishing, are in
+`TauCeti.LinearAlgebra.ExteriorPower.Plucker`.
 
 ## Main definitions
 
@@ -35,9 +36,8 @@ Siegel bound in the entries of `A` is not invariant under this substitution.
   by `normalize (det U)`; `Matrix.minorGcd_unit_mul` is the unimodular case.
 * `Matrix.sq_minorGcd_dvd_det_mul_transpose_self`: the square of the minor gcd divides the Gram
   determinant of the rows.
-* `Matrix.linearIndependent_rows_rat_iff`: the rows of an integer matrix are linearly independent
-  over `ℚ` exactly when `det (A * Aᵀ) ≠ 0`.
-* `Matrix.one_le_minorGcd`: under that hypothesis the minor gcd is at least `1`.
+* `Matrix.one_le_minorGcd`: if the rows of an integer matrix are linearly independent over `ℚ`,
+  the minor gcd is at least `1`.
 * `Matrix.sqrt_det_div_minorGcd_unit_mul`: the Bombieri–Vaaler quantity
   `√det (A * Aᵀ) / minorGcd A` is invariant under `A ↦ U * A` for `U ∈ GL_m(ℤ)`.
 
@@ -137,14 +137,6 @@ theorem minorGcd_unit_mul {U : Matrix (Fin m) (Fin m) R} (hU : IsUnit U.det)
 
 end StrongNormalizedGCDMonoid
 
-omit [LinearOrder ι] in
-/-- Multiplying a matrix on the left by a square matrix `U` multiplies the Gram determinant of its
-rows by `det U ^ 2`. -/
-theorem det_mul_transpose_self_mul (U : Matrix (Fin m) (Fin m) R) (A : Matrix (Fin m) ι R) :
-    ((U * A) * (U * A)ᵀ).det = U.det ^ 2 * (A * Aᵀ).det := by
-  rw [transpose_mul, Matrix.mul_assoc, ← Matrix.mul_assoc A, det_mul, det_mul, det_transpose]
-  ring
-
 /-! ### Integer matrices -/
 
 section Int
@@ -153,21 +145,6 @@ section Int
 theorem minorGcd_nonneg (A : Matrix (Fin m) ι ℤ) : 0 ≤ A.minorGcd := by
   rw [← normalize_minorGcd, ← Int.abs_eq_normalize]
   exact abs_nonneg _
-
-/-- **The rank hypothesis is a condition on the integer matrix alone**: the rows of an integer
-matrix are linearly independent over `ℚ` exactly when their Gram determinant is nonzero. -/
-theorem linearIndependent_rows_rat_iff (A : Matrix (Fin m) ι ℤ) :
-    LinearIndependent ℚ (A.map ((↑) : ℤ → ℚ)).row ↔ (A * Aᵀ).det ≠ 0 := by
-  have h : (A.map ((↑) : ℤ → ℚ) * (A.map ((↑) : ℤ → ℚ))ᵀ).det = ((A * Aᵀ).det : ℚ) := by
-    rw [Int.cast_det, ← transpose_map, ← Int.coe_castRingHom, Matrix.map_mul]
-    simp only [Int.coe_castRingHom]
-  rw [← det_mul_transpose_self_ne_zero_iff, h, Int.cast_ne_zero]
-
-/-- The Gram determinant of the rows of an integer matrix of rank equal to its number of rows is
-positive. -/
-theorem det_mul_transpose_self_pos {A : Matrix (Fin m) ι ℤ}
-    (hA : LinearIndependent ℚ (A.map ((↑) : ℤ → ℚ)).row) : 0 < (A * Aᵀ).det :=
-  (det_mul_transpose_self_nonneg A).lt_of_ne' ((linearIndependent_rows_rat_iff A).1 hA)
 
 /-- The minor gcd of an integer matrix whose rows are linearly independent over `ℚ` is at least
 `1`. -/
@@ -187,12 +164,6 @@ theorem sq_minorGcd_le_det_mul_transpose_self (A : Matrix (Fin m) ι ℤ) :
   · exact Int.le_of_dvd h A.sq_minorGcd_dvd_det_mul_transpose_self
   · rw [← h, minorGcd_eq_zero_iff.2 ((det_mul_transpose_self_eq_zero_iff A).1 h.symm)]
     simp
-
-omit [LinearOrder ι] in
-/-- A row operation with determinant `±1` does not change the Gram determinant of the rows. -/
-theorem det_mul_transpose_self_unit_mul {U : Matrix (Fin m) (Fin m) ℤ} (hU : IsUnit U.det)
-    (A : Matrix (Fin m) ι ℤ) : ((U * A) * (U * A)ᵀ).det = (A * Aᵀ).det := by
-  rw [det_mul_transpose_self_mul, Int.isUnit_sq hU, one_mul]
 
 /-- **The invariance of the Bombieri–Vaaler bound** (Bombieri–Vaaler (2.5)): the quantity
 `√det (A * Aᵀ) / minorGcd A` is unchanged by `A ↦ U * A` for `U ∈ GL_m(ℤ)`. -/

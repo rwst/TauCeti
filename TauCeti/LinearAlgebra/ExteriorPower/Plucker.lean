@@ -59,6 +59,11 @@ a linearly ordered commutative ring. The empty family has a single Plücker coor
   nonnegative, and it vanishes exactly when every maximal minor does.
 * `Matrix.det_mul_transpose_self_ne_zero_iff`: over a linearly ordered field it is nonzero exactly
   when the rows of `A` are linearly independent.
+* `Matrix.det_mul_transpose_self_mul`: replacing `A` by `U * A` multiplies it by `det U ^ 2`;
+  `Matrix.det_mul_transpose_self_unit_mul` is the integer unimodular case.
+* `Matrix.linearIndependent_rows_rat_iff`, `Matrix.det_mul_transpose_self_pos`: the rows of an
+  integer matrix are linearly independent over `ℚ` exactly when `det (A * Aᵀ) ≠ 0`, and then it is
+  positive.
 
 ## References
 
@@ -68,8 +73,9 @@ a linearly ordered commutative ring. The empty family has a single Plücker coor
 The proofs use Mathlib's exterior-power basis `Module.Basis.exteriorPower` and its coordinate
 formula `exteriorPower.ιMultiDual_apply_ιMulti`, by Sophie Morel and Daniel Morrison.
 
-The matrix statements `Matrix.plucker_row_mul` and `Matrix.det_mul_transpose_self_*` follow Ralf
-Stephan's `ArithmeticHeights/RowSpace.lean` and `ArithmeticHeights/CauchyBinet.lean` in
+The matrix statements `Matrix.plucker_row_mul`, `Matrix.det_mul_transpose_self_*` and
+`Matrix.linearIndependent_rows_rat_iff` follow Ralf Stephan's `ArithmeticHeights/RowSpace.lean`,
+`ArithmeticHeights/CauchyBinet.lean` and `ArithmeticHeights/BombieriVaaler.lean` in
 [`rwst/Subspace-Theorems`](https://github.com/rwst/Subspace-Theorems/tree/09835cb23557ae5ae0cf55a9c4ab9055f5d60338/ArithmeticHeights)
 (Apache 2.0).
 -/
@@ -214,6 +220,14 @@ theorem det_mul_transpose_self_eq_sum_sq [Fintype ι] (A : Matrix (Fin p) ι R) 
   have hA : Matrix.of A.row = A := by rw [row_eq_self, Equiv.apply_symm_apply]
   simpa [hA, sq] using det_mul_transpose_eq_sum_plucker_mul A.row A.row
 
+omit [LinearOrder ι] in
+/-- Multiplying a matrix on the left by a square matrix `U` multiplies the Gram determinant of its
+rows by `det U ^ 2`. -/
+theorem det_mul_transpose_self_mul [Fintype ι] (U : Matrix (Fin p) (Fin p) R)
+    (A : Matrix (Fin p) ι R) : ((U * A) * (U * A)ᵀ).det = U.det ^ 2 * (A * Aᵀ).det := by
+  rw [transpose_mul, Matrix.mul_assoc, ← Matrix.mul_assoc A, det_mul, det_mul, det_transpose]
+  ring
+
 section LinearOrder
 
 variable [LinearOrder R] [IsStrictOrderedRing R] [Fintype ι]
@@ -246,5 +260,34 @@ theorem det_mul_transpose_self_ne_zero_iff {K : Type*} [Field K] [LinearOrder K]
     [IsStrictOrderedRing K] [Fintype ι] (A : Matrix (Fin p) ι K) :
     (A * Aᵀ).det ≠ 0 ↔ LinearIndependent K A.row := by
   rw [ne_eq, det_mul_transpose_self_eq_zero_iff, ← ne_eq, plucker_ne_zero_iff]
+
+/-! ### Integer matrices -/
+
+section Int
+
+variable [Fintype ι]
+
+/-- **The rank hypothesis is a condition on the integer matrix alone**: the rows of an integer
+matrix are linearly independent over `ℚ` exactly when their Gram determinant is nonzero. -/
+theorem linearIndependent_rows_rat_iff (A : Matrix (Fin p) ι ℤ) :
+    LinearIndependent ℚ (A.map ((↑) : ℤ → ℚ)).row ↔ (A * Aᵀ).det ≠ 0 := by
+  have h : (A.map ((↑) : ℤ → ℚ) * (A.map ((↑) : ℤ → ℚ))ᵀ).det = ((A * Aᵀ).det : ℚ) := by
+    rw [Int.cast_det, ← transpose_map, ← Int.coe_castRingHom, Matrix.map_mul]
+    simp only [Int.coe_castRingHom]
+  rw [← det_mul_transpose_self_ne_zero_iff, h, Int.cast_ne_zero]
+
+/-- The Gram determinant of the rows of an integer matrix of rank equal to its number of rows is
+positive. -/
+theorem det_mul_transpose_self_pos {A : Matrix (Fin p) ι ℤ}
+    (hA : LinearIndependent ℚ (A.map ((↑) : ℤ → ℚ)).row) : 0 < (A * Aᵀ).det :=
+  (det_mul_transpose_self_nonneg A).lt_of_ne' ((linearIndependent_rows_rat_iff A).1 hA)
+
+omit [LinearOrder ι] in
+/-- A row operation with determinant `±1` does not change the Gram determinant of the rows. -/
+theorem det_mul_transpose_self_unit_mul {U : Matrix (Fin p) (Fin p) ℤ} (hU : IsUnit U.det)
+    (A : Matrix (Fin p) ι ℤ) : ((U * A) * (U * A)ᵀ).det = (A * Aᵀ).det := by
+  rw [det_mul_transpose_self_mul, Int.isUnit_sq hU, one_mul]
+
+end Int
 
 end Matrix
